@@ -1,0 +1,59 @@
+# Do not edit
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+
+definitions:
+  steps:
+    - step: &get-stats
+        name: Get build minutes stats
+        script:
+          - pipe: atlassian/bitbucket-build-statistics:1.0.1
+            variables:
+              BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+              BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
+              WORKSPACE: "cashenvoy-engineering"
+    - step: &build-and-push
+        name: Build and push image
+        oidc: true
+        script:
+          - VERSION="v1.0.$BITBUCKET_BUILD_NUMBER"
+          - IMAGE="ceng-aws-deploy-kit"
+          - docker build -q --file ./Dockerfile.deploykit.ubuntu -t ${IMAGE} .
+          - pipe: atlassian/aws-ecr-push-image:1.6.2
+            variables:
+              AWS_DEFAULT_REGION: ${AWS_REGION}
+              AWS_OIDC_ROLE_ARN: ${AWS_ROLE_ARN}
+              IMAGE_NAME: ${IMAGE}
+              TAGS: "${VERSION} latest"
+          - git tag -a "${VERSION}" -m "Tagging for release ${VERSION}"
+          - git push origin ${VERSION}
+        services:
+          - docker
+    - step: &test-and-push
+        name: Push test image
+        oidc: true
+        script:
+          - VERSION="test_$BITBUCKET_BUILD_NUMBER"
+          - IMAGE="ceng-aws-deploy-kit"
+          - docker build -q --file ./Dockerfile.deploykit.ubuntu -t ${IMAGE} .
+          - pipe: atlassian/aws-ecr-push-image:1.6.2
+            variables:
+              AWS_DEFAULT_REGION: ${AWS_REGION}
+              AWS_OIDC_ROLE_ARN: ${AWS_ROLE_ARN}
+              IMAGE_NAME: ${IMAGE}
+              TAGS: "${VERSION} test"
+        services:
+          - docker
+
+pipelines:
+  custom:
+    get-stats:
+      - step: *get-stats
+
+  branches:
+    master:
+      - step: *build-and-push
+
+  pull-requests:
+    "**":
+      - step: *test-and-push

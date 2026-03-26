@@ -1,0 +1,46 @@
+	
+rules	
+0	
+action	
+type	"expire"
+selection	
+countType	"imageCountMoreThan"
+countNumber	5
+tagStatus	"tagged"
+tagPrefixList	
+0	"staging_"
+description	"For staging tag, keep last 5 images"
+rulePriority	1
+1	
+action	
+type	"expire"
+selection	
+countType	"imageCountMoreThan"
+countNumber	3
+tagStatus	"tagged"
+tagPrefixList	
+0	"production_"
+description	"For production tag, keep last 3 images"
+rulePriority	2
+2	
+action	
+type	"expire"
+selection	
+countType	"sinceImagePushed"
+countUnit	"days"
+countNumber	5
+tagStatus	"tagged"
+tagPrefixList	
+0	"20"
+description	"For dated based tag, delete after 5 days"
+rulePriority	3
+3	
+action	
+type	"expire"
+selection	
+countType	"sinceImagePushed"
+countUnit	"days"
+countNumber	1
+tagStatus	"untagged"
+description	"For untagged images, delete after 1 day"
+rulePriority	4

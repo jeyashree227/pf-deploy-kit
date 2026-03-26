@@ -1,0 +1,8 @@
+[
+  {
+    "Field": "path-pattern",
+    "PathPatternConfig": {
+      "Values": ["/$my_path/*", "/$my_path"]
+    }
+  }
+]

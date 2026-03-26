@@ -1,0 +1,44 @@
+{
+  "serviceName": "$ecs_service_name",
+  "cluster": "$cluster_name",
+  "taskDefinition": "$service_name:$taskdef_rev",
+  "loadBalancers": [
+    {
+      "targetGroupArn": "$tg_arn",
+      "containerName": "envoy",
+      "containerPort": 443
+    }
+  ],
+  "platformVersion": "1.4.0",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": ["$vpc_private_subnet1", "$vpc_private_subnet2"],
+      "securityGroups": ["$container_sg_id"],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 100,
+    "deploymentCircuitBreaker": {
+      "enable": true,
+      "rollback": true
+    }
+  },
+  "desiredCount": 1,
+  "healthCheckGracePeriodSeconds": 20,
+  "schedulingStrategy": "REPLICA",
+  "enableECSManagedTags": true,
+  "propagateTags": "TASK_DEFINITION",
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "$deploy_context"
+    }
+  ],
+  "serviceRegistries": [
+    {
+      "registryArn": "$sr_arn"
+    }
+  ]
+}

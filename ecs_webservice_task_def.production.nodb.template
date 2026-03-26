@@ -1,0 +1,205 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "init",
+      "mountPoints": [
+        {
+          "containerPath": "/var/www/html/storage/",
+          "sourceVolume": "efs-container-storage",
+          "readOnly": false
+        }
+      ],
+      "secrets": [
+        {
+          "name": "BASTION1_SSH_PUBLIC_KEY",
+          "valueFrom": "$bastion_secrets_arn:BASTION1_SSH_PUBLIC_KEY::"
+        },
+        {
+          "name": "BASTION2_SSH_PUBLIC_KEY",
+          "valueFrom": "$bastion_secrets_arn:BASTION2_SSH_PUBLIC_KEY::"
+        }
+      ],
+      "environmentFiles": [
+        {
+          "value": "arn:aws:s3:::$s3b_name/$service_env_file",
+          "type": "s3"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "$log_grp_name",
+          "awslogs-region": "$AWS_REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "entryPoint": ["/usr/local/bin/migrate-db.sh"],
+      "cpu": 0,
+      "stopTimeout": 120,
+      "essential": false,
+      "image": "$aws_ecr_repo_url_main:$tag"
+    },
+    {
+      "name": "envoy",
+      "mountPoints": [
+        {
+          "containerPath": "/etc/ssl/",
+          "sourceVolume": "efs-$deploy_context_lowercase-certs",
+          "readOnly": true
+        }
+      ],
+      "dependsOn": [
+        {
+          "containerName": "init",
+          "condition": "SUCCESS"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "$log_grp_name",
+          "awslogs-region": "$AWS_REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "portMappings": [
+        {
+          "containerPort": 443,
+          "protocol": "tcp"
+        }
+      ],
+      "image": "$aws_ecr_repo_url_proxy:$tag",
+      "essential": true,
+      "stopTimeout": 120,
+      "environment": [
+        {
+          "name": "DNS_NAME",
+          "value": "$sr_service_name.$namespace"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -s http://localhost:9901/server_info | grep state | grep -q LIVE"
+        ],
+        "interval": 120,
+        "retries": 3,
+        "startPeriod": 5,
+        "timeout": 5
+      },
+      "memory": 500
+    },
+    {
+      "name": "service",
+      "mountPoints": [
+        {
+          "containerPath": "/var/www/html/storage/",
+          "sourceVolume": "efs-container-storage",
+          "readOnly": false
+        }
+      ],
+      "secrets": [
+        {
+          "name": "BASTION1_SSH_PUBLIC_KEY",
+          "valueFrom": "$bastion_secrets_arn:BASTION1_SSH_PUBLIC_KEY::"
+        },
+        {
+          "name": "BASTION2_SSH_PUBLIC_KEY",
+          "valueFrom": "$bastion_secrets_arn:BASTION2_SSH_PUBLIC_KEY::"
+        }
+      ],
+      "environmentFiles": [
+        {
+          "value": "arn:aws:s3:::$s3b_name/$service_env_file",
+          "type": "s3"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "$log_grp_name",
+          "awslogs-region": "$AWS_REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -s http://localhost:80/health | grep status | grep -q true"
+        ],
+        "interval": 120,
+        "retries": 3,
+        "startPeriod": 5,
+        "timeout": 5
+      },
+      "cpu": 0,
+      "stopTimeout": 120,
+      "essential": true,
+      "image": "$aws_ecr_repo_url_main:$tag",
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        },
+        {
+          "protocol": "tcp",
+          "containerPort": 22
+        }
+      ],
+      "dependsOn": [
+        {
+          "containerName": "envoy",
+          "condition": "HEALTHY"
+        }
+      ]
+    }
+  ],
+  "cpu": "0.25 vCPU",
+  "taskRoleArn": "arn:aws:iam::286886851830:role/CENG_Task_Role",
+  "executionRoleArn": "arn:aws:iam::286886851830:role/CENG_Task_Execution_Role",
+  "family": "$service_name",
+  "memory": "1 GB",
+  "networkMode": "awsvpc",
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "$deploy_context"
+    }
+  ],
+  "requiresCompatibilities": ["FARGATE"],
+  "volumes": [
+    {
+      "name": "efs-$deploy_context_lowercase-certs",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "$fs_id",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "accessPointId": "$envoy_ssl_ap_id",
+          "iam": "DISABLED"
+        }
+      }
+    },
+    {
+      "name": "efs-container-logs",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "$fs_id",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "accessPointId": "$cntrlogs_ap_id",
+          "iam": "DISABLED"
+        }
+      }
+    },
+    {
+      "name": "efs-container-storage",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "$fs_id",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "accessPointId": "$cntrstrg_ap_id",
+          "iam": "DISABLED"
+        }
+      }
+    }
+  ]
+}

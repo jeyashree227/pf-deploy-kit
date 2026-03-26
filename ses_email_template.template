@@ -1,0 +1,8 @@
+{
+  "Template": {
+    "TemplateName": "$template_name",
+    "SubjectPart": "$subject",
+    "TextPart": "$text",
+    "HtmlPart": "$html"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "meshName": "$mesh_name",
+  "spec": {
+    "backends": [],
+    "listeners": [
+      {
+        "portMapping": {
+          "port": 80,
+          "protocol": "http"
+        },
+        "healthCheck": {
+          "healthyThreshold": 5,
+          "intervalMillis": 30000,
+          "path": "/health",
+          "port": 80,
+          "protocol": "http",
+          "timeoutMillis": 5000,
+          "unhealthyThreshold": 2
+        }
+      }
+    ],
+    "serviceDiscovery": {
+      "awsCloudMap": {
+        "attributes": [
+          {
+            "key": "Environment",
+            "value": "$deploy_context"
+          }
+        ],
+        "namespaceName": "$namespace",
+        "serviceName": "$sr_service_name"
+      }
+    }
+  },
+  "virtualNodeName": "$vn_service_name",
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "$deploy_context"
+    }
+  ]
+}
